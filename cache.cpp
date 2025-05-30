@@ -30,7 +30,9 @@ CacheLine Memory::ReadLine( uint address )
 	return retVal;
 }
 
-void Cache::WriteLine( uint address, CacheLine line )
+
+
+void AssociativeCache::WriteLine( uint address, CacheLine line )
 {
 	// verify that the address is a multiple of the cacheline width
 	assert( (address & CACHELINEWIDTH - 1) == 0 );
@@ -39,7 +41,7 @@ void Cache::WriteLine( uint address, CacheLine line )
 	assert( (address / CACHELINEWIDTH) == line.tag );
 
 	// fully associative: see if any of the slots match our address
-	int slotsInCache = CACHESIZE / CACHELINEWIDTH;
+	int slotsInCache = size / CACHELINEWIDTH;
 	for (int i = 0; i < slotsInCache; i++) if (slot[i].tag == line.tag)
 	{
 		// cacheline is already in the cache; overwrite
@@ -59,7 +61,7 @@ void Cache::WriteLine( uint address, CacheLine line )
 	w_miss++;
 }
 
-void Cache::EvictLine( uint address, CacheLine line )
+void AssociativeCache::EvictLine( uint address, CacheLine line )
 {
 	// verify that the address is a multiple of the cacheline width
 	assert( (address & CACHELINEWIDTH - 1) == 0 );
@@ -68,7 +70,7 @@ void Cache::EvictLine( uint address, CacheLine line )
 	assert( (address / CACHELINEWIDTH) == line.tag );
 
 	// compute number of slots in cache
-	int slotsInCache = CACHESIZE / CACHELINEWIDTH;
+	int slotsInCache = size / CACHELINEWIDTH;
 
 	// address not found; evict a line
 	int slotToEvict = RandomUInt() % slotsInCache;
@@ -81,13 +83,13 @@ void Cache::EvictLine( uint address, CacheLine line )
 	slot[slotToEvict] = line;
 }
 
-CacheLine Cache::ReadLine( uint address )
+CacheLine AssociativeCache::ReadLine( uint address )
 {
 	// verify that the address is a multiple of the cacheline width
 	assert( (address & CACHELINEWIDTH - 1) == 0 );
 
 	// fully associative: see if any of the slots match our address
-	int slotsInCache = CACHESIZE / CACHELINEWIDTH;
+	int slotsInCache = size / CACHELINEWIDTH;
 	uint addressTag = address / CACHELINEWIDTH;
 	for (int i = 0; i < slotsInCache; i++)
 	{
@@ -109,6 +111,8 @@ CacheLine Cache::ReadLine( uint address )
 	r_miss++;
 	return line;
 }
+
+
 
 void MemHierarchy::WriteByte( uint address, uchar value )
 {
