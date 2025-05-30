@@ -182,6 +182,85 @@ CacheLine DirectMappedCache::ReadLine(uint address)
 
 
 
+void NWaySetAssociativeCache::WriteLine(uint address, CacheLine line)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// verify that the provided cacheline has the right tag
+	assert((address / CACHELINEWIDTH) == line.tag);
+
+	// n-way associative: iterate through bucket given by lowest bits of the address
+	int slotsInCache = size / CACHELINEWIDTH;
+	int set = line.tag & ((slotsInCache - 1) >> LOG_N);
+	int startSlot = set << LOG_N;
+	for (int i = startSlot; i < startSlot + (1 << LOG_N); i++) if (slot[i].tag == line.tag)
+	{
+		// cacheline is already in the cache; overwrite
+		slot[i] = line;
+		w_hit++;
+		return;
+	}
+
+	// address not found; evict a line
+	EvictLine(address, line);
+	w_miss++;
+}
+
+void NWaySetAssociativeCache::EvictLine(uint address, CacheLine line)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// verify that the provided cacheline has the right tag
+	assert((address / CACHELINEWIDTH) == line.tag);
+
+	// compute number of slots in cache
+	int slotsInCache = size / CACHELINEWIDTH;
+
+	// address not found; evict a line
+	int set = line.tag & ((slotsInCache - 1) >> LOG_N);
+	int startSlot = set << LOG_N;
+	int slotToEvict = startSlot + RandomUInt() % (1 << LOG_N);
+	if (slot[slotToEvict].dirty)
+	{
+		// evicted line is dirty; write to next level
+		nextLevel->WriteLine(slot[slotToEvict].tag * CACHELINEWIDTH, slot[slotToEvict]);
+	}
+
+	slot[slotToEvict] = line;
+}
+
+CacheLine NWaySetAssociativeCache::ReadLine(uint address)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// n-way associative: iterate through bucket given by lowest bits of the address
+	int slotsInCache = size / CACHELINEWIDTH;
+	uint addressTag = address / CACHELINEWIDTH;
+	int set = addressTag & ((slotsInCache - 1) >> LOG_N);
+	int startSlot = set << LOG_N;
+	for (int i = startSlot; i < startSlot + (1 << LOG_N); i++) if (slot[i].tag == addressTag)
+	{
+		// cacheline is in the cache; return data
+		r_hit++;
+		return slot[i]; // by value
+	}
+
+	// data is not in this cache; ask the next level
+	CacheLine line = nextLevel->ReadLine(address);
+
+	// store the retrieved line in this cache
+	EvictLine(address, line);
+
+	// return the requested data
+	r_miss++;
+	return line;
+}
+
+
+
 void MemHierarchy::WriteByte( uint address, uchar value )
 {
 	// fetch the cacheline for the specified address

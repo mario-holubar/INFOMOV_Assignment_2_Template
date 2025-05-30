@@ -3,11 +3,14 @@
 namespace Tmpl8 {
 
 //#define CACHE_TYPE		AssociativeCache
-#define CACHE_TYPE		DirectMappedCache
+//#define CACHE_TYPE		DirectMappedCache
+#define CACHE_TYPE		NWaySetAssociativeCache
 #define CACHELINEWIDTH	64
+#define LOG_N			6	// Logarithm of the number of entries in each set for the N-way set associative cache
 #define L1_LOG_SIZE		6
 #define L2_LOG_SIZE		10
 #define L3_LOG_SIZE		12
+
 #define L1_SIZE			(CACHELINEWIDTH << L1_LOG_SIZE)	// 2^6 lines @ 64 width => 4 KB
 #define L2_SIZE			(CACHELINEWIDTH << L2_LOG_SIZE)	// 2^10 lines @ 64 width => 64 KB
 #define L3_SIZE			(CACHELINEWIDTH << L3_LOG_SIZE)	// 2^12 lines @ 64 width => 256 KB
@@ -51,6 +54,24 @@ class DirectMappedCache : public Level // direct mapped cache
 {
 public:
 	DirectMappedCache(const uint cache_size)
+	{
+		size = cache_size;
+		slot = new CacheLine[cache_size / CACHELINEWIDTH];
+		memset(slot, 0, cache_size / CACHELINEWIDTH * sizeof(CacheLine));
+	}
+	void WriteLine(uint address, CacheLine line);
+	void EvictLine(uint address, CacheLine line);
+	CacheLine ReadLine(uint address);
+	CacheLine& backdoor(int i) { return slot[i]; } /* for visualization without side effects */
+private:
+	uint size;
+	CacheLine* slot;
+};
+
+class NWaySetAssociativeCache : public Level // N-way set associative cache
+{
+public:
+	NWaySetAssociativeCache(const uint cache_size)
 	{
 		size = cache_size;
 		slot = new CacheLine[cache_size / CACHELINEWIDTH];
