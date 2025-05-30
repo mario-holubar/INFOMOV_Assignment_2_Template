@@ -2,12 +2,16 @@
 
 namespace Tmpl8 {
 
-#define CACHE_TYPE		AssociativeCache
+//#define CACHE_TYPE		AssociativeCache
+#define CACHE_TYPE		DirectMappedCache
 #define CACHELINEWIDTH	64
-#define L1_SIZE			4096		// 4 KB
-#define L2_SIZE			65536		// 64 KB
-#define L3_SIZE			262144		// 256 KB
-#define DRAM_SIZE		3276800		// 3.125 MB; 1024x800 pixels
+#define L1_LOG_SIZE		6
+#define L2_LOG_SIZE		10
+#define L3_LOG_SIZE		12
+#define L1_SIZE			(CACHELINEWIDTH << L1_LOG_SIZE)	// 2^6 lines @ 64 width => 4 KB
+#define L2_SIZE			(CACHELINEWIDTH << L2_LOG_SIZE)	// 2^10 lines @ 64 width => 64 KB
+#define L3_SIZE			(CACHELINEWIDTH << L3_LOG_SIZE)	// 2^12 lines @ 64 width => 256 KB
+#define DRAM_SIZE		3276800							// 3.125 MB; 1024x800 pixels
 
 struct CacheLine
 {
@@ -38,6 +42,24 @@ public:
 	void EvictLine( uint address, CacheLine line );
 	CacheLine ReadLine( uint address );
 	CacheLine& backdoor( int i ) { return slot[i]; } /* for visualization without side effects */
+private:
+	uint size;
+	CacheLine* slot;
+};
+
+class DirectMappedCache : public Level // direct mapped cache
+{
+public:
+	DirectMappedCache(const uint cache_size)
+	{
+		size = cache_size;
+		slot = new CacheLine[cache_size / CACHELINEWIDTH];
+		memset(slot, 0, cache_size / CACHELINEWIDTH * sizeof(CacheLine));
+	}
+	void WriteLine(uint address, CacheLine line);
+	void EvictLine(uint address, CacheLine line);
+	CacheLine ReadLine(uint address);
+	CacheLine& backdoor(int i) { return slot[i]; } /* for visualization without side effects */
 private:
 	uint size;
 	CacheLine* slot;

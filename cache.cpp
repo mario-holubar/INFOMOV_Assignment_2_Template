@@ -51,13 +51,7 @@ void AssociativeCache::WriteLine( uint address, CacheLine line )
 	}
 
 	// address not found; evict a line
-	int slotToEvict = RandomUInt() % slotsInCache;
-	if (slot[slotToEvict].dirty)
-	{
-		// evicted line is dirty; write to next level
-		nextLevel->WriteLine( slot[slotToEvict].tag * CACHELINEWIDTH, slot[slotToEvict] );
-	}
-	slot[slotToEvict] = line;
+	EvictLine(address, line);
 	w_miss++;
 }
 
@@ -106,6 +100,80 @@ CacheLine AssociativeCache::ReadLine( uint address )
 
 	// store the retrieved line in this cache
 	EvictLine( address, line );
+
+	// return the requested data
+	r_miss++;
+	return line;
+}
+
+
+
+void DirectMappedCache::WriteLine(uint address, CacheLine line)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// verify that the provided cacheline has the right tag
+	assert((address / CACHELINEWIDTH) == line.tag);
+
+	// direct mapped: access slot given by lowest bits of the address
+	int slotsInCache = size / CACHELINEWIDTH;
+	int cacheEntry = line.tag & (slotsInCache - 1);
+	if (slot[cacheEntry].tag == line.tag) {
+		// cacheline is already in the cache; overwrite
+		slot[cacheEntry] = line;
+		w_hit++;
+		return;
+	}
+
+	// address not found; evict a line
+	EvictLine(address, line);
+	w_miss++;
+}
+
+void DirectMappedCache::EvictLine(uint address, CacheLine line)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// verify that the provided cacheline has the right tag
+	assert((address / CACHELINEWIDTH) == line.tag);
+
+	// compute number of slots in cache
+	int slotsInCache = size / CACHELINEWIDTH;
+
+	// address not found; evict a line
+	int slotToEvict = line.tag & (slotsInCache - 1);
+	if (slot[slotToEvict].dirty)
+	{
+		// evicted line is dirty; write to next level
+		nextLevel->WriteLine(slot[slotToEvict].tag * CACHELINEWIDTH, slot[slotToEvict]);
+	}
+
+	slot[slotToEvict] = line;
+}
+
+CacheLine DirectMappedCache::ReadLine(uint address)
+{
+	// verify that the address is a multiple of the cacheline width
+	assert((address & CACHELINEWIDTH - 1) == 0);
+
+	// direct mapped: access slot given by lowest bits of the address
+	int slotsInCache = size / CACHELINEWIDTH;
+	uint addressTag = address / CACHELINEWIDTH;
+	int cacheEntry = addressTag & (slotsInCache - 1);
+	if (slot[cacheEntry].tag == addressTag)
+	{
+		// cacheline is in the cache; return data
+		r_hit++;
+		return slot[cacheEntry]; // by value
+	}
+
+	// data is not in this cache; ask the next level
+	CacheLine line = nextLevel->ReadLine(address);
+
+	// store the retrieved line in this cache
+	EvictLine(address, line);
 
 	// return the requested data
 	r_miss++;
