@@ -1,9 +1,12 @@
 #include "precomp.h"
 #include "game.h"
+#include <iostream>
 
 // static variables for graph / fractal drawing / obfuscation
 static float a = 0, r = 300;
 static Graph gr[8];
+static uint n_ticks = 0; // tick counter
+static uint total_r_hits[4] = { 0, 0, 0, 0 }, total_w_hits[4] = { 0, 0, 0, 0 }; // cache hit counters
 #define _oOo_oOo_ (O>=V|N>=800?0:(((N<<10)+O)*4)
 uint* image[4], I,N,F,O,M,_O,V=2019; double K[999], Q[999];
 float R(){I^=I<<13;I^=I>>17;I^=I<<5;return I*2.3283064365387e-10f*6-3;} // rng
@@ -109,4 +112,28 @@ void Game::Tick( float )
 
 	// visualize the memory hierarchy
 	VisualizeMem();
+
+	// benchmark printout
+	total_r_hits[0] += mem.l1->r_hit;
+	total_r_hits[1] += mem.l2->r_hit;
+	total_r_hits[2] += mem.l3->r_hit;
+	total_r_hits[3] += mem.dram->r_hit;
+	total_w_hits[0] += mem.l1->w_hit;
+	total_w_hits[1] += mem.l2->w_hit;
+	total_w_hits[2] += mem.l3->w_hit;
+	total_w_hits[3] += mem.dram->w_hit;
+	n_ticks++;
+	if (n_ticks >= 10000) {
+		std::cout << "READ "
+			<< total_r_hits[0] << ", "
+			<< total_r_hits[1] << ", "
+			<< total_r_hits[2] << ", "
+			<< total_r_hits[3] << std::endl;
+		std::cout << "WRITE "
+			<< total_w_hits[0] << ", "
+			<< total_w_hits[1] << ", "
+			<< total_w_hits[2] << ", "
+			<< total_w_hits[3] << std::endl << std::endl;
+		n_ticks = 0;
+	}
 }
