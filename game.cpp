@@ -2,6 +2,11 @@
 #include "game.h"
 #include <iostream>
 
+#define SPIRAL 0
+#define FRACTAL 1
+#define ANT 2
+#define ALGORITHM ANT
+
 // static variables for graph / fractal drawing / obfuscation
 static float a = 0, r = 300;
 static Graph gr[8];
@@ -10,6 +15,7 @@ static uint total_r_hits[4] = { 0, 0, 0, 0 }, total_w_hits[4] = { 0, 0, 0, 0 }; 
 #define _oOo_oOo_ (O>=V|N>=800?0:(((N<<10)+O)*4)
 uint* image[4], I,N,F,O,M,_O,V=2019; double K[999], Q[999];
 float R(){I^=I<<13;I^=I>>17;I^=I<<5;return I*2.3283064365387e-10f*6-3;} // rng
+int ant_x = 512, ant_y = 400, ant_dir = 0;
 
 // -----------------------------------------------------------
 // Visualization of the data stored in the memory hierarchy
@@ -90,7 +96,7 @@ void Game::Tick( float )
 
 	// update memory contents
 
-#if 1
+#if ALGORITHM == SPIRAL
 	// simple spiral							ACCESS PATTERN: STRUCTURED
 	for (int i = 0; i < 10; i++)
 	{
@@ -99,7 +105,7 @@ void Game::Tick( float )
 		if (r < -300) r = -300;
 		mem.WriteUint( (x + y * 1024) * 4, 0xffff77 );
 	}
-#else
+#elif ALGORITHM == FRACTAL
 	// the buddhabrot based on Paul Bourke		ACCESS PATTERN: MOSTLY RANDOM
 	for(int G,M,T,E=0;++E<2;)for(G=0;++G<V
 	<<7;){double B=0,y=0,t=R(),e,z=R();for
@@ -108,6 +114,32 @@ void Game::Tick( float )
 	T;){O=400+.3*V*Q[M],N=.3*V*K[M++]+520;		mem.WriteUint _oOo_oOo_,
 												mem.ReadUint _oOo_oOo_ )+545)
 	/* END OF BLACK BOX CODE */;}break;}}}
+#elif ALGORITHM == ANT
+	// Langton's ant (https://en.wikipedia.org/wiki/Langton%27s_ant)
+	for (int i = 0; i < 100; i++)
+	{
+		// Read color at current pixel
+		uint state = mem.ReadUint((ant_x + ant_y * 1024) * 4);
+		// Turn left or right
+		if (state > 0) ant_dir--;
+		else ant_dir++;
+		ant_dir = (ant_dir + 4) % 4;
+		// Flip color
+		mem.WriteUint((ant_x + ant_y * 1024) * 4, 0x00ffffff ^ state);
+		// Move
+		switch (ant_dir) {
+		case 0:
+			ant_x++; break;
+		case 1:
+			ant_y++; break;
+		case 2:
+			ant_x--; break;
+		case 3:
+			ant_y--; break;
+		}
+		ant_x = (ant_x + 1024) % 1024;
+		ant_y = (ant_y + 800) % 800;
+	}
 #endif
 
 	// visualize the memory hierarchy
