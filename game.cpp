@@ -6,6 +6,7 @@
 #define FRACTAL 1
 #define ANT 2
 #define ALGORITHM ANT
+#define BENCHMARK_STEPS 1000 // 10000 for spiral, 100 for fractal, 1000 for ant
 
 // static variables for graph / fractal drawing / obfuscation
 static float a = 0, r = 300;
@@ -155,7 +156,7 @@ void Game::Tick( float )
 	total_w_hits[2] += mem.l3->w_hit;
 	total_w_hits[3] += mem.dram->w_hit;
 	n_ticks++;
-	if (n_ticks >= 10000) {
+	if (n_ticks >= BENCHMARK_STEPS) {
 		std::cout << "READ "
 			<< total_r_hits[0] << ", "
 			<< total_r_hits[1] << ", "
